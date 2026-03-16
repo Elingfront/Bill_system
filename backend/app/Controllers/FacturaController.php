@@ -1,6 +1,4 @@
 <?php
-namespace App\Controllers;
-
 require_once dirname(__DIR__) . '/Core/Database.php'; 
 require_once dirname(__DIR__) . '/Models/Factura.php'; 
 
@@ -8,73 +6,85 @@ use App\Models\Factura;
 use App\Core\Database;
 
 class FacturaController {
-    
     public function guardar() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') return;
-        if (session_status() === PHP_SESSION_NONE) session_start();
+        header('Content-Type: application/json');
 
         try {
-            $uploadPath = "C:\\ALT_SISTEMA_DATA\\facturas"; 
             $modelo = new Factura();
             
+            $numFactura = $_POST['numero_factura'] ?? 'SIN_NUMERO';
+            $folioCarpeta = "FACT_" . $numFactura;
+
             $tipo = $_POST['tipo_factura'] ?? 'compra';
             $estaPagada = isset($_POST['pagada']); 
-            $estadoFinal = $estaPagada ? 'pagada' : 'pendiente';
+            $estado = $estaPagada ? 'pagada' : 'pendiente';
 
-            $datos = [
-                'entidad_id'    => $_POST['entidad_id'] ?? null,
-                'fecha_emision' => $_POST['fecha_emision'] ?? date('Y-m-d'),
-                'estado'        => $estadoFinal,
-                'usuario_id'    => 1,
-                'archivo_path'  => '',
-                'ruta_carpeta'  => '',
-                'soporte_pago_path' => null,
-                'egreso_path'   => null,
-                'fecha_pago'    => $estaPagada ? date('Y-m-d') : null
-            ];
+            $uploadPath = "C:\\ALT_SISTEMA_DATA\\facturas"; 
+            
+            // --- 1. DEFINIR RUTAS ---
+            // Ruta Raíz (Siempre existe)
+            $subDirRaiz = ($tipo === 'compra') ? 'compras' : 'ventas';
+            $rutaRaiz = $uploadPath . DIRECTORY_SEPARATOR . $subDirRaiz . DIRECTORY_SEPARATOR . $folioCarpeta . DIRECTORY_SEPARATOR;
 
-            if (!$datos['entidad_id']) throw new \Exception('Debe seleccionar un tercero');
+            // Ruta de Cuentas (Solo si está pendiente)
+            $rutaCuentas = null;
+            if (!$estaPagada) {
+                $subDirCuentas = ($tipo === 'compra') ? 'Cuentas de Pago' : 'Cuentas de Cobro';
+                $rutaCuentas = $uploadPath . DIRECTORY_SEPARATOR . $subDirCuentas . DIRECTORY_SEPARATOR . $folioCarpeta . DIRECTORY_SEPARATOR;
+            }
 
-            // 1. Registro inicial en BD
-            $idGenerado = ($tipo === 'compra') ? $modelo->guardar($datos) : $modelo->guardarVenta($datos);
-            if (!$idGenerado) throw new \Exception('Error al insertar registro');
+            // Crear carpetas si no existen
+            if (!is_dir($rutaRaiz)) mkdir($rutaRaiz, 0777, true);
+            if ($rutaCuentas && !is_dir($rutaCuentas)) mkdir($rutaCuentas, 0777, true);
 
-            // 2. Crear carpeta del Folio
-            $folioTexto = str_pad($idGenerado, 3, "0", STR_PAD_LEFT);
-            $subDir = ($tipo === 'compra') ? 'compras' : 'ventas';
-            $baseDir = $uploadPath . DIRECTORY_SEPARATOR . $subDir . DIRECTORY_SEPARATOR . "FACT_" . $folioTexto . DIRECTORY_SEPARATOR;
-
-            if (!is_dir($baseDir)) mkdir($baseDir, 0755, true);
-
-            // 3. Mover Factura
-            $nombreFactura = "factura_" . $folioTexto . ".pdf";
-            move_uploaded_file($_FILES['pdf_factura']['tmp_name'], $baseDir . $nombreFactura);
-
-            // 4. Mover archivos adicionales si aplica
-            $nombreSoporte = null;
-            $nombreEgreso = null;
-
-            if ($estaPagada) {
-                if (!empty($_FILES['archivo_soporte']['name'])) {
-                    $nombreSoporte = "soporte_" . $folioTexto . ".pdf";
-                    move_uploaded_file($_FILES['archivo_soporte']['tmp_name'], $baseDir . $nombreSoporte);
-                }
-                if (!empty($_FILES['archivo_contable']['name'])) {
-                    $prefijo = ($tipo === 'compra') ? "egreso_" : "recibo_";
-                    $nombreEgreso = $prefijo . $folioTexto . ".pdf";
-                    move_uploaded_file($_FILES['archivo_contable']['tmp_name'], $baseDir . $nombreEgreso);
+            // --- 2. PROCESAR EL PDF ---
+            $nombreFactura = $_FILES['pdf_factura']['name'] ?? null;
+            if ($nombreFactura) {
+                // Primero se sube a la RAÍZ
+                move_uploaded_file($_FILES['pdf_factura']['tmp_name'], $rutaRaiz . $nombreFactura);
+                
+                // Si está pendiente, hacemos el ESPEJO (Copiamos de Raíz a Cuentas)
+                if ($rutaCuentas) {
+                    copy($rutaRaiz . $nombreFactura, $rutaCuentas . $nombreFactura);
                 }
             }
 
-            // 5. Actualizar rutas definitivas
-            $modelo->actualizarRutas($idGenerado, $nombreFactura, $baseDir, $tipo, $nombreSoporte, $nombreEgreso);
-            
-            header("Location: /sistema_facturas/backend/views/cargar_factura.php?res=ok");
-            
-        } catch (\Exception $e) {
-            header("Location: /sistema_facturas/backend/views/cargar_factura.php?res=error&msg=" . urlencode($e->getMessage()));
+            // --- 3. PREPARAR DATOS PARA BD ---
+            $datos = [
+                'entidad_id'        => $_POST['entidad_id'] ?? null,
+                'fecha_emision'     => $_POST['fecha_emision'] ?? date('Y-m-d'),
+                'estado'            => $estado,
+                'usuario_id'        => 1,
+                'archivo_path'      => $nombreFactura, 
+                'ruta_carpeta'      => ($estaPagada ? $rutaRaiz : $rutaCuentas), // La vista buscará en Cuentas si está pendiente
+                'soporte_pago_path' => null,
+                'egreso_path'       => null,
+                'fecha_pago'        => $estaPagada ? date('Y-m-d') : null
+            ];
+
+            // Guardar en BD
+            $idGenerado = ($tipo === 'compra') ? $modelo->guardar($datos) : $modelo->guardarVenta($datos);
+            if (!$idGenerado) throw new Exception('Error al insertar');
+
+            // --- 4. SI ENTRA PAGADA DE UNA VEZ, PROCESAR SOPORTES ---
+            if ($estaPagada) {
+                $nombreSoporte = $_FILES['archivo_soporte']['name'] ?? null;
+                $nombreEgreso = $_FILES['archivo_contable']['name'] ?? null;
+
+                if ($nombreSoporte) move_uploaded_file($_FILES['archivo_soporte']['tmp_name'], $rutaRaiz . $nombreSoporte);
+                if ($nombreEgreso) move_uploaded_file($_FILES['archivo_contable']['tmp_name'], $rutaRaiz . $nombreEgreso);
+                
+                $modelo->actualizarRutas($idGenerado, $nombreFactura, $rutaRaiz, $tipo, $nombreSoporte, $nombreEgreso);
+            }
+
+            echo json_encode(['status' => 'success']);
+            exit;
+
+        } catch (Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+            exit;
         }
-        exit;
     }
 }
 

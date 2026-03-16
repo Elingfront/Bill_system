@@ -75,7 +75,18 @@ class Factura {
         ]);
     }
 
-    public function ultimoFolio() {
+public function obtenerCarteraPendiente() {
+     $sql = "SELECT id, entidad_id, fecha_emision, 'cobro' as tipo_cartera, archivo_path, ruta_carpeta 
+            FROM facturas_venta WHERE estado = 'pendiente'
+            UNION ALL
+            SELECT id, entidad_id, fecha_emision, 'pago' as tipo_cartera, archivo_path, ruta_carpeta 
+            FROM facturas_compra WHERE estado = 'pendiente'
+            ORDER BY fecha_emision ASC";  
+            
+    return $this->db->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+}
+
+public function ultimoFolio() {
 $sql = "SELECT * FROM (
                 SELECT id, entidad_id, fecha_emision, estado, archivo_path, ruta_carpeta, soporte_pago_path, egreso_path, 'compra' as tipo_origen 
                 FROM facturas_compra
@@ -95,5 +106,9 @@ $sql = "SELECT * FROM (
         return null;
     }
 
-}
+    
+
+
+
+    }
 }

@@ -16,13 +16,13 @@ $resumen = DashboardController::obtenerResumen();
         <div class="container-fluid d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
                 <img src="/sistema_facturas/logosinfondo.png" alt="ALT" width="40" class="me-3">
-                <span class="fw-bold fs-4" style="color: #633035;">ALT-CONFECCIONES</span>
+                <span class="fw-bold fs-4" style="color: #221a1bff;">ALT-CONFECCIONES</span>
             </div>
 
             <div class="d-flex align-items-center gap-3">
                 <div class="text-end me-2">
                     <h4 class="text-muted d-block">Bienvenido,</h4>
-                    <span class="fw-bold" style="color: #633035;"> al Servicio Contable ALT</span>
+                    <span class="fw-bold" style="color: #633035;"> al SISTEMA DE GESTIÓN DE ARCHIVO CONTABLE.</span>
                 </div>
                 <a href="auth/logout.php" class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-sm">
                     <i data-lucide="log-out" class="me-1" style="width: 16px;"></i> Salir
@@ -71,8 +71,7 @@ $resumen = DashboardController::obtenerResumen();
                     <div class="d-flex flex-column gap-3 ps-4" style="border-left: 4px solid #633035;">
                         <?php 
                         foreach ($docsArr as $doc): 
-                            // CORRECCIÓN LÍNEA 47: Validar que no sea NULL antes de procesar
-                            if (!empty($doc['f'])): 
+                             if (!empty($doc['f'])): 
                                 $fullPath = $ruta . $doc['f'];
                                 if (file_exists($fullPath)): 
                                     // Determinar etiqueta si es recibo o egreso
@@ -106,8 +105,9 @@ $resumen = DashboardController::obtenerResumen();
 </div>
 
 <style>
+    
     .btn-vinotinto-outline { border: 2px solid #633035; color: #633035; font-weight: bold; background: white; text-decoration: none; transition: 0.3s; }
-    .btn-vinotinto-outline:hover { background: #633035; color: white; }
+    .btn-vinotinto-outline:hover { background: #633035; color: #ccc; }
 
     /* Estilos Carpeta */
     .animated-folder-container { position: relative; width: 230px; height: 160px; transition: 0.3s; }
