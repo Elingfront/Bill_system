@@ -85,8 +85,11 @@ try {
                     $esCompra = ($f['tipo'] === 'compra');
                     $colorHex = $esCompra ? '#632626' : '#2c3e50'; 
                     $bgLigero = $esCompra ? 'rgba(99, 38, 38, 0.03)' : 'rgba(44, 62, 80, 0.03)';
-                    // ID único para el colapso (Evita que se abran todas a la vez)
                     $collapseId = "docs_" . $f['tipo'] . "_" . $f['id'];
+
+                    // --- MEJORA AQUÍ: Sacar el número real de la carpeta ---
+                    $partes = explode('FACT_', $f['ruta_carpeta']);
+                    $numReal = isset($partes[1]) ? rtrim($partes[1], DIRECTORY_SEPARATOR . '/') : $f['id'];
                 ?>
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card h-100 shadow-sm border-0" 
@@ -104,7 +107,7 @@ try {
                             </div>
                             
                             <h5 class="fw-bold mb-1" style="color: <?= $colorHex ?>;">
-                                ALT-<?= strtoupper($f['tipo']) ?>-F.(<?= str_pad($f['id'], 3, "0", STR_PAD_LEFT) ?>)
+                                ALT-<?= strtoupper($f['tipo']) ?>-<?= $numReal ?>
                             </h5>
                             
                             <div class="bg-white p-2 rounded border mb-3 mt-2">
@@ -138,9 +141,9 @@ try {
                                            target="_blank" 
                                            class="btn btn-sm d-flex align-items-center justify-content-between px-3 py-2 doc-link"
                                            style="color: #444; text-decoration: none; border-radius: 8px;">
-                                            <span class="small fw-bold">
+                                             <span class="small fw-bold">
                                                 <i data-lucide="<?= $d['i'] ?>" size="15" class="me-2 text-muted"></i> <?= $d['l'] ?>
-                                            </span>
+                                             </span>
                                             <i data-lucide="external-link" size="12" class="text-muted"></i>
                                         </a>
                                     <?php endif; endforeach; ?>
@@ -159,6 +162,5 @@ try {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script>
-    // Inicializar iconos de Lucide
     lucide.createIcons();
 </script>

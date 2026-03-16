@@ -5,7 +5,7 @@
     <ul class="nav flex-column"><hr>
         <li class="nav-item mb-2">
             <a href="dashboard.php" class="nav-link text-white d-flex align-items-center">
-                <i data-lucide="layout-dashboard" class="me-2"></i> Panel Principal
+                <i data-lucide="layout-dashboard" class="me-2"></i> Panel Administrativo
             </a>
         </li><hr>
         
@@ -30,17 +30,6 @@
             </a>
         </li>
         <hr>
-        <li class="nav-item mb-2">
-            <a href="cuentas_cobro.php" class="nav-link text-white d-flex align-items-center">
-                <i data-lucide="hand-coins" class="me-2"></i> Cuentas de Cobro
-            </a>
-        </li><hr>
-        <li class="nav-item mb-2">
-            <a href="cuentas_pago.php" class="nav-link text-white d-flex align-items-center">
-                <i data-lucide="circle-plus" class="me-2"></i> Cuentas de Pago
-            </a>
-        </li><hr>
-
      </ul>
 </div>
 <script>
