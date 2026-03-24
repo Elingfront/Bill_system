@@ -11,7 +11,7 @@ public function guardar($data) {
     
         return $stmt->execute([
             $data['nombre']    ?? 'Sin Nombre',
-            $data['nit']       ?? '0',
+            $data['nit_cedula']       ?? '0',
             $data['tipo']      ?? 'PROVEEDOR',
             $data['telefono']  ?? '0',
             $data['correo']    ?? 'sin@correo.com', 

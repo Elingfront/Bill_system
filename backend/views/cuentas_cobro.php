@@ -1,8 +1,13 @@
-
 <?php
-///////////////////////////////
-////////FACTURAS_VENTA/////////
-///////////////////////////////
+session_start();
+if (!isset($_SESSION['autenticado'])) {
+    header("Location: login.php");
+    exit();
+}
+
+error_reporting(0);
+ini_set('display_errors', 0);
+
 include __DIR__ . '/auth/header.php';
 include __DIR__ . '/auth/sidebar.php';
 require_once __DIR__ . '/../app/Core/Database.php'; 
@@ -10,109 +15,189 @@ use App\Core\Database;
 
 $db = Database::getConnection();
 
-// Traemos solo las VENTAS que están PENDIENTES
-$sql = "SELECT id, entidad_id, fecha_emision, archivo_path, ruta_carpeta 
-        FROM facturas_venta 
-        WHERE estado = 'pendiente' 
-        ORDER BY id DESC";
+// Traemos solo las VENTAS que están PENDIENTES con JOIN a entidades
+$sql = "SELECT f.id, f.entidad_id, f.fecha_emision, f.archivo_path, f.ruta_carpeta, e.nit_cedula, e.nombre 
+        FROM facturas_venta f
+        LEFT JOIN entidades e ON f.entidad_id = e.id
+        WHERE f.estado = 'pendiente' 
+        ORDER BY f.id DESC";
 
 $cuentas = $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 $colorVenta = '#2c3e50'; 
-
-
 ?>
 
 <style>
-    .action-btn-cobro {
-        background: linear-gradient(135deg, #2c3e50 0%, #455a64 100%);
-        border: none;
-        transition: all 0.3s ease;
+    :root { --alt-vinotinto: #632626; --alt-navy: #2c3e50; }
+    body { background-color: #fff; font-family: 'Segoe UI', sans-serif; }
+    .main-content { margin-left: 280px; padding: 20px 40px; }
+
+    /* ===== HEADER PROFESIONAL ALT ===== */
+    .alt-page-header {
+        background: linear-gradient(135deg, #632626 0%, #8b3a3a 50%, #4a1a1a 100%);
+        border-radius: 12px; padding: 22px 28px; margin-bottom: 25px;
+        display: flex; justify-content: space-between; align-items: center;
+        box-shadow: 0 4px 15px rgba(99, 38, 38, 0.25);
+        position: relative; overflow: hidden;
     }
-    .action-btn-cobro:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 15px rgba(44, 62, 80, 0.4) !important;
-        filter: brightness(1.1);
+    .alt-page-header::before {
+        content: ''; position: absolute; top: -50%; right: -20%;
+        width: 300px; height: 300px;
+        background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+        pointer-events: none;
     }
+    .alt-header-content { display: flex; align-items: center; gap: 16px; z-index: 1; }
+    .alt-header-icon {
+        width: 48px; height: 48px; background: rgba(255,255,255,0.15);
+        border-radius: 12px; display: flex; align-items: center; justify-content: center;
+        color: #fff; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1);
+    }
+    .alt-header-title { font-size: 20px; font-weight: 800; color: #fff; margin: 0; letter-spacing: -0.3px; }
+    .alt-header-subtitle { font-size: 12px; color: rgba(255,255,255,0.7); font-weight: 500; letter-spacing: 0.5px; }
+    .alt-header-meta { display: flex; align-items: center; gap: 10px; z-index: 1; }
+    .alt-header-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.9);
+        padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.5px;
+        backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* Estilo de Filtros */
+    .filter-section { background-color: #f8f9fa; border: 1px solid #ddd; padding: 20px; border-radius: 4px; margin-bottom: 25px; }
+    .label-min { font-size: 11px; font-weight: 800; color: #666; text-transform: uppercase; margin-bottom: 5px; }
+
+    /* Tabla Estilo Hoja Contable Real */
+    .tabla-alt { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .tabla-alt thead th { background-color: #f2f2f2; color: #000; padding: 12px 10px; border-bottom: 2px solid #333; text-align: left; }
+    .tabla-alt tbody tr { border-bottom: 1px solid #eee; }
+    .tabla-alt tbody tr:hover { background-color: #fcfcfc; }
+    .tabla-alt td { padding: 12px 10px; color: #333; vertical-align: middle; }
+
+    .nit-font { font-family: monospace; font-weight: bold; font-size: 14px; color: #444; }
+    .doc-ref { font-weight: bold; color: var(--alt-navy); font-size: 12px; }
+
+    .btn-navy-action {
+        background: var(--alt-navy); color: white; border: none;
+        padding: 5px 15px; border-radius: 4px; font-weight: bold;
+        font-size: 11px; text-transform: uppercase; transition: 0.3s;
+    }
+    .btn-navy-action:hover { background: #1a252f; color: white; transform: scale(1.05); }
 </style>
 
-<main class="main-content p-4" style="margin-left: 280px; margin-top: 20px;">
-    <div class="container-fluid">
-        
-        <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-4 rounded shadow-sm border-bottom border-4" style="border-color: <?= $colorVenta ?> !important;">
+<main class="main-content">
+    <div class="alt-page-header">
+        <div class="alt-header-content">
+            <div class="alt-header-icon"><i data-lucide="hand-coins" size="24"></i></div>
             <div>
-                <h2 class="fw-bold mb-0" style="color: <?= $colorVenta ?>;">Cuentas de Cobro</h2>
-                <p class="text-muted mb-0 small">Facturas emitidas pendientes por recibir pago.</p>
+                <h4 class="alt-header-title">Cuentas de Cobro</h4>
+                <span class="alt-header-subtitle">ALT-CONFECCIONES · Facturas Pendientes de Recaudo</span>
             </div>
-            
-            <button class="btn btn-lg text-white fw-bold shadow action-btn-cobro d-flex align-items-center px-4 py-2" 
-                    data-bs-toggle="modal" data-bs-target="#modalCobrarCuentas">
-                <i data-lucide="hand-coins" class="me-2" style="width: 20px;"></i> 
-                REGISTRAR COBRO
-            </button>
         </div>
+        <div class="alt-header-meta">
+            <span class="alt-header-badge"><i data-lucide="calendar" size="12"></i> <?= date('d/m/Y') ?></span>
+            <span class="alt-header-badge"><i data-lucide="user" size="12"></i> <?= strtoupper($_SESSION['username'] ?? 'USUARIO') ?></span>
+        </div>
+    </div>
 
-        <div class="row">
-            <?php if (empty($cuentas)): ?>
-                <div class="col-12 text-center py-5">
-                    <i data-lucide="badge-check" size="48" class="text-success mb-3"></i>
-                    <p class="text-muted fs-5">Todos tus clientes están al día.</p>
+    <div class="filter-section shadow-sm">
+        <div class="row align-items-end g-3">
+            <div class="col-md-9">
+                <div class="label-min">Búsqueda Rápida (NIT / Cliente / Venta)</div>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white"><i data-lucide="search" size="14"></i></span>
+                    <input type="text" id="inputBusqueda" class="form-control" placeholder="Escriba para filtrar..." onkeyup="ejecutarFiltro()">
                 </div>
-            <?php else: ?>
-                <?php foreach ($cuentas as $c): ?>
-                    <div class="col-md-6 col-lg-4 mb-4">
-                        <div class="card h-100 shadow-sm border-0" style="border-radius: 15px;">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span class="fw-bold text-muted small">ALT-VENTA-<?= str_pad($c['id'], 3, "0", STR_PAD_LEFT) ?></span>
-                                    <span class="badge bg-dark text-white px-3 py-2 rounded-pill small fw-bold">POR COBRAR</span>
-                                </div>
-                                <div class="d-flex align-items-center text-secondary small mb-3">
-                                    <i data-lucide="calendar" size="14" class="me-2"></i> Emisión: <?= $c['fecha_emision'] ?>
-                                </div>
-                                <a href="abrir_archivo.php?file=<?= urlencode($c['ruta_carpeta'] . $c['archivo_path']) ?>" 
-                                   target="_blank" class="btn btn-sm btn-outline-dark w-100 rounded-pill fw-bold">
-                                    <i data-lucide="eye" size="14" class="me-1"></i> Ver Factura
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-dark btn-sm w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#modalCobrarCuentas">
+                    <i data-lucide="hand-coins" size="14"></i> REGISTRAR COBRO
+                </button>
+            </div>
         </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="tabla-alt" id="tablaCuentasCobro">
+            <thead>
+                <tr>
+                    <th style="width: 160px;">CC / NIT</th>
+                    <th>CLIENTE</th>
+                    <th style="width: 120px;">FECHA EMISIÓN</th>
+                    <th style="width: 150px;">DOCUMENTO</th>
+                    <th class="text-end">ACCIÓN</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($cuentas as $c): 
+                    $parts = explode('FACT_', $c['ruta_carpeta']);
+                    $folio = isset($parts[1]) ? rtrim($parts[1], DIRECTORY_SEPARATOR . '/') : $c['id'];
+                    $nit = $c['nit_cedula'] ?? '';
+                    $nombre = $c['nombre'] ?? 'SIN NOMBRE';
+                ?>
+                <tr class="row-cuenta" data-search="<?= htmlspecialchars(strtolower($nit . ' ' . $nombre . ' venta-' . $folio)) ?>">
+                    <td class="nit-font"><?= htmlspecialchars($nit) ?: '---' ?></td>
+                    <td class="text-uppercase">
+                        <strong style="font-size: 13px;"><?= htmlspecialchars($nombre) ?></strong>
+                    </td>
+                    <td class="fw-bold text-muted"><?= date('d/m/Y', strtotime($c['fecha_emision'])) ?></td>
+                    <td class="doc-ref">VENTA-<?= $folio ?></td>
+                    <td class="text-end">
+                        <button class="btn btn-navy-action" onclick="abrirModalCobro(<?= $c['id'] ?>, 'VENTA-<?= $folio ?>')">
+                            COBRAR AHORA
+                        </button>
+                        <a href="abrir_archivo.php?file=<?= urlencode($c['ruta_carpeta'] . $c['archivo_path']) ?>" 
+                           target="_blank" class="btn btn-link p-0 ms-2 text-dark" title="Ver Factura">
+                            <i data-lucide="eye" size="16"></i>
+                        </a>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+                <?php if (empty($cuentas)): ?>
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">No hay facturas pendientes de cobro.</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
     </div>
 </main>
 
+<!-- Modal Formalizar Ingreso -->
 <div class="modal fade" id="modalCobrarCuentas" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="fw-bold" style="color: <?= $colorVenta ?>;">Formalizar Ingreso</h5>
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
+            <div class="modal-header border-0 pb-0 p-4">
+                <h5 class="fw-bold text-dark">Formalizar Ingreso de Venta</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="procesar_pago.php" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="tipo_proceso" value="venta"> <div class="modal-body p-4">
+                <input type="hidden" name="tipo_proceso" value="venta"> 
+                <div class="modal-body p-4">
                     <div class="mb-4">
-                        <label class="form-label fw-bold small text-muted">Seleccione Factura del Cliente</label>
-                        <select name="factura_id" class="form-select border-2" required>
+                        <label class="label-min">Seleccione Factura del Cliente</label>
+                        <select name="factura_id" id="selectFacturaModal" class="form-select border-2" required>
                             <option value="" disabled selected>Seleccione folio...</option>
-                            <?php foreach ($cuentas as $c): ?>
-                                <option value="<?= $c['id'] ?>">ALT-VENTA-<?= str_pad($c['id'], 3, "0", STR_PAD_LEFT) ?></option>
+                            <?php foreach ($cuentas as $c): 
+                                $parts = explode('FACT_', $c['ruta_carpeta']);
+                                $folio = isset($parts[1]) ? rtrim($parts[1], DIRECTORY_SEPARATOR . '/') : $c['id'];
+                            ?>
+                                <option value="<?= $c['id'] ?>">VENTA-<?= $folio ?> - <?= htmlspecialchars($c['nombre']) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="p-3 rounded-4" style="background-color: #f0f4f8; border: 1px dashed <?= $colorVenta ?>;">
+                    <div class="p-3 rounded-3" style="background-color: #f8f9fa; border: 1px dashed #ddd;">
                         <div class="mb-3">
-                            <label class="small fw-bold text-dark">Soporte de Transferencia / Recibo</label>
+                            <label class="label-min text-dark">Soporte de Transferencia / Recibo (Banco)</label>
                             <input type="file" name="soporte_pago" class="form-control form-control-sm" required>
                         </div>
                         <div class="mb-0">
-                            <label class="small fw-bold text-dark">Recibo de Caja</label>
+                            <label class="label-min text-dark">Recibo de Caja (Contable)</label>
                             <input type="file" name="egreso" class="form-control form-control-sm" required>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="submit" class="btn text-white w-100 rounded-pill fw-bold action-btn-cobro">Confirmar Cobro</button>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-dark w-100 fw-bold py-2">REGISTRAR COBRO AHORA</button>
                 </div>
             </form>
         </div>
@@ -124,10 +209,27 @@ $colorVenta = '#2c3e50';
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    // Inicializar iconos
     lucide.createIcons();
 
-    // Lógica de la animación de éxito
+    const modalCobro = new bootstrap.Modal(document.getElementById('modalCobrarCuentas'));
+
+    function abrirModalCobro(id, folio) {
+        const select = document.getElementById('selectFacturaModal');
+        select.value = id;
+        modalCobro.show();
+    }
+
+    function ejecutarFiltro() {
+        const searchInput = document.getElementById('inputBusqueda');
+        const search = searchInput ? searchInput.value.toLowerCase() : '';
+        const rows = document.querySelectorAll('.row-cuenta');
+
+        rows.forEach(row => {
+            const rowSearch = row.getAttribute('data-search') || '';
+            row.style.display = rowSearch.includes(search) ? '' : 'none';
+        });
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('success')) {
         Swal.fire({
@@ -137,9 +239,6 @@ $colorVenta = '#2c3e50';
             confirmButtonColor: "<?= $colorVenta ?>",
             confirmButtonText: "¡OK!"
         });
-        // Limpia la URL para que no repita la animación al recargar
         window.history.replaceState({}, document.title, window.location.pathname);
     }
-    header("Location: facturas_venta.php?success=1"); 
-exit();
 </script>

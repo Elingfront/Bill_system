@@ -6,19 +6,18 @@ use App\Models\Factura;
 
 class DashboardController {
     
-    public static function obtenerResumen() {
+     public static function obtenerResumen() {
         $modelo = new Factura();
-        $ultimo = $modelo->ultimoFolio(); // El que le faltaba
-
+        $ultimo = $modelo->ultimoFolio();
         if (!$ultimo) return null;
 
         return [
-            'datos' => $ultimo,
-            'archivos' => [
-                'factura' => $ultimo['archivo_path'],
-                'soporte' => $ultimo['soporte_pago_path'],
-                'egreso'  => $ultimo['egreso_path']
-            ]
+            'datos' => $ultimo
         ];
+    }
+
+     public static function filtrarDocumentos($nit_cedula, $mes, $tipo) {
+        $modelo = new Factura();
+         return $modelo->buscarConFiltros($nit_cedula, $mes, $tipo);
     }
 }

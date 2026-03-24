@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         // 1. Obtener info actual
-        $stmt = $db->prepare("SELECT id, archivo_path, ruta_carpeta FROM $tabla WHERE id = ?");
+        $stmt = $db->prepare("SELECT id, archivo_path, ruta_carpeta, fecha_emision FROM $tabla WHERE id = ?");
         $stmt->execute([$factura_id]);
         $factura = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -24,9 +24,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $partes = explode(DIRECTORY_SEPARATOR, rtrim($rutaOrigen, DIRECTORY_SEPARATOR));
         $folioCarpeta = end($partes);
         
-        // 3. Definir Destino Raíz (Diferenciando Compras/Ventas)
+        // 3. Definir Destino Raíz con estructura Año/Mes (igual que compras)
         $subDirRaiz = ($tipo === 'compra') ? 'compras' : 'ventas';
-        $rutaDestino = "C:\\ALT_SISTEMA_DATA\\facturas\\" . $subDirRaiz . "\\" . $folioCarpeta . "\\";
+        
+        $mesesNombres = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+            5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+            9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+        ];
+        $fechaEmision = $factura['fecha_emision'] ?? date('Y-m-d');
+        $anioNum = date('Y', strtotime($fechaEmision));
+        $mesNum = (int)date('m', strtotime($fechaEmision));
+        $nombreMes = $mesesNombres[$mesNum];
+        
+        $rutaDestino = "C:\\ALT_SISTEMA_DATA\\facturas\\" . $subDirRaiz . "\\" . $anioNum . "\\" . $nombreMes . "\\" . $folioCarpeta . "\\";
 
         if (!is_dir($rutaDestino)) mkdir($rutaDestino, 0777, true);
 
@@ -50,11 +61,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             move_uploaded_file($_FILES['egreso']['tmp_name'], $rutaDestino . $nombreEgreso);
         }
 
-        // 4. LIMPIAR CARPETA TEMPORAL
+        // 4. LIMPIAR CARPETA TEMPORAL (origen)
         if ($rutaOrigen !== $rutaDestino && is_dir($rutaOrigen)) {
             $files = glob($rutaOrigen . '*');
             foreach ($files as $file) { if (is_file($file)) unlink($file); }
-            rmdir($rutaOrigen);
+            @rmdir($rutaOrigen);
+        }
+
+        // 4b. LIMPIAR CARPETA DE CUENTAS (Pago o Cobro) 
+        $subDirCuentas = ($tipo === 'compra') ? 'Cuentas de Pago' : 'Cuentas de Cobro';
+        $rutaCuentas = "C:\\ALT_SISTEMA_DATA\\facturas\\" . $subDirCuentas . "\\" . $folioCarpeta . "\\";
+        if ($rutaCuentas !== $rutaDestino && is_dir($rutaCuentas)) {
+            $files = glob($rutaCuentas . '*');
+            foreach ($files as $file) { if (is_file($file)) unlink($file); }
+            @rmdir($rutaCuentas);
         }
 
         // 5. ACTUALIZAR BD CON LA RUTA RAÍZ Y LOS 3 ARCHIVOS

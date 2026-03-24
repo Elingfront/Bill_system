@@ -1,84 +1,170 @@
 <?php
-require_once dirname(__DIR__) . '/Core/Database.php'; 
-require_once dirname(__DIR__) . '/Models/Factura.php'; 
+namespace App\Controllers;
+
+require_once dirname(__DIR__) . '/Core/Database.php';
+require_once dirname(__DIR__) . '/Models/Factura.php';
 
 use App\Models\Factura;
 use App\Core\Database;
+use Exception;
 
 class FacturaController {
+
     public function guardar() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') return;
+        if (session_status() === PHP_SESSION_NONE) session_start();
+
+        if (ob_get_length()) ob_clean();
         header('Content-Type: application/json');
 
         try {
             $modelo = new Factura();
-            
-            $numFactura = $_POST['numero_factura'] ?? 'SIN_NUMERO';
-            $folioCarpeta = "FACT_" . $numFactura;
+            $db     = Database::getConnection();
 
-            $tipo = $_POST['tipo_factura'] ?? 'compra';
-            $estaPagada = isset($_POST['pagada']); 
-            $estado = $estaPagada ? 'pagada' : 'pendiente';
+            // ─────────────────────────────────────────────────────────────────
+            // 1. DATOS DEL FORMULARIO
+            // ─────────────────────────────────────────────────────────────────
+            $numFactura = trim($_POST['numero_factura'] ?? '');
+            if (!$numFactura) throw new Exception("El número de factura es obligatorio.");
 
-            $uploadPath = "C:\\ALT_SISTEMA_DATA\\facturas"; 
-            
-            // --- 1. DEFINIR RUTAS ---
-            // Ruta Raíz (Siempre existe)
-            $subDirRaiz = ($tipo === 'compra') ? 'compras' : 'ventas';
-            $rutaRaiz = $uploadPath . DIRECTORY_SEPARATOR . $subDirRaiz . DIRECTORY_SEPARATOR . $folioCarpeta . DIRECTORY_SEPARATOR;
+            $fechaEmision = $_POST['fecha_emision'] ?? date('Y-m-d');
+            $tipo         = $_POST['tipo_factura']  ?? 'compra';
+            $estaPagada   = isset($_POST['pagada']);
+            $estado       = $estaPagada ? 'pagada' : 'pendiente';
+            $usuarioId    = $_SESSION['user_id'] ?? 1;
+            $entidadId    = $_POST['entidad_id']  ?? null;
 
-            // Ruta de Cuentas (Solo si está pendiente)
+            if (!$entidadId) throw new Exception("Debe seleccionar un tercero.");
+
+            // ─────────────────────────────────────────────────────────────────
+            // 2. NIT Y NOMBRE DEL TERCERO
+            //    Vienen de los campos ocultos llenados por procesar_ia.php.
+            //    Si están vacíos (selección manual sin IA), los buscamos en DB.
+            // ─────────────────────────────────────────────────────────────────
+            $nitCedula     = trim($_POST['nit_cedula']     ?? '');
+            $nombreTercero = trim($_POST['nombre_tercero'] ?? '');
+
+            if (empty($nitCedula) || empty($nombreTercero)) {
+                $stmt = $db->prepare(
+                    "SELECT nit_cedula, nombre FROM entidades WHERE id = ? LIMIT 1"
+                );
+                $stmt->execute([$entidadId]);
+                $entidad = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                if ($entidad) {
+                    $nitCedula     = $nitCedula     ?: ($entidad['nit_cedula'] ?? '');
+                    $nombreTercero = $nombreTercero ?: ($entidad['nombre']     ?? '');
+                }
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // 3. SELLO ALT  (YYMM-NúmeroFactura)
+            // ─────────────────────────────────────────────────────────────────
+            $periodo  = date('ym', strtotime($fechaEmision));
+            $selloAlt = $periodo . "-" . $numFactura;
+
+            // ─────────────────────────────────────────────────────────────────
+            // 4. RUTAS DE CARPETAS
+            // ─────────────────────────────────────────────────────────────────
+            $mesesNombres = [
+                1 => 'Enero',     2 => 'Febrero',   3 => 'Marzo',
+                4 => 'Abril',     5 => 'Mayo',       6 => 'Junio',
+                7 => 'Julio',     8 => 'Agosto',     9 => 'Septiembre',
+                10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+            ];
+            $mesNum    = (int) date('m', strtotime($fechaEmision));
+            $anioNum   = date('Y', strtotime($fechaEmision));
+            $nombreMes = $mesesNombres[$mesNum];
+
+            $uploadPath = "C:\\ALT_SISTEMA_DATA\\facturas";
+            $subDir     = ($tipo === 'compra') ? 'compras' : 'ventas';
+            $folderName = "FACT_" . $numFactura;
+
+            // Estructura: C:\ALT_SISTEMA_DATA\facturas\compras\2026\Febrero\FACT_3866\
+            $rutaRaiz = implode(DIRECTORY_SEPARATOR, [
+                $uploadPath, $subDir, $anioNum, $nombreMes, $folderName, ''
+            ]);
+
             $rutaCuentas = null;
             if (!$estaPagada) {
                 $subDirCuentas = ($tipo === 'compra') ? 'Cuentas de Pago' : 'Cuentas de Cobro';
-                $rutaCuentas = $uploadPath . DIRECTORY_SEPARATOR . $subDirCuentas . DIRECTORY_SEPARATOR . $folioCarpeta . DIRECTORY_SEPARATOR;
+                $rutaCuentas   = implode(DIRECTORY_SEPARATOR, [
+                    $uploadPath, $subDirCuentas, $folderName, ''
+                ]);
             }
 
-            // Crear carpetas si no existen
-            if (!is_dir($rutaRaiz)) mkdir($rutaRaiz, 0777, true);
-            if ($rutaCuentas && !is_dir($rutaCuentas)) mkdir($rutaCuentas, 0777, true);
+            if (!is_dir($rutaRaiz)) {
+                if (!mkdir($rutaRaiz, 0777, true)) {
+                    throw new Exception("Error al crear carpeta: " . $rutaRaiz);
+                }
+            }
+            if ($rutaCuentas && !is_dir($rutaCuentas)) {
+                if (!mkdir($rutaCuentas, 0777, true)) {
+                    throw new Exception("Error al crear carpeta de cuentas: " . $rutaCuentas);
+                }
+            }
 
-            // --- 2. PROCESAR EL PDF ---
-            $nombreFactura = $_FILES['pdf_factura']['name'] ?? null;
-            if ($nombreFactura) {
-                // Primero se sube a la RAÍZ
-                move_uploaded_file($_FILES['pdf_factura']['tmp_name'], $rutaRaiz . $nombreFactura);
-                
-                // Si está pendiente, hacemos el ESPEJO (Copiamos de Raíz a Cuentas)
+            // ─────────────────────────────────────────────────────────────────
+            // 5. SUBIR PDF DE FACTURA
+            // ─────────────────────────────────────────────────────────────────
+            $nombreFactura = null;
+            if (
+                isset($_FILES['pdf_factura']) &&
+                $_FILES['pdf_factura']['error'] === UPLOAD_ERR_OK
+            ) {
+                $nombreFactura = $_FILES['pdf_factura']['name'];
+                if (!move_uploaded_file($_FILES['pdf_factura']['tmp_name'], $rutaRaiz . $nombreFactura)) {
+                    throw new Exception("Error al mover el archivo PDF.");
+                }
                 if ($rutaCuentas) {
                     copy($rutaRaiz . $nombreFactura, $rutaCuentas . $nombreFactura);
                 }
             }
 
-            // --- 3. PREPARAR DATOS PARA BD ---
+            // ─────────────────────────────────────────────────────────────────
+            // 6. GUARDAR EN BASE DE DATOS
+            //    Ahora incluye: numero_factura_ia, nit_cedula y nombre
+            // ─────────────────────────────────────────────────────────────────
             $datos = [
-                'entidad_id'        => $_POST['entidad_id'] ?? null,
-                'fecha_emision'     => $_POST['fecha_emision'] ?? date('Y-m-d'),
+                'sello_alt'         => $selloAlt,
+                'numero_factura_ia' => $numFactura,   // ← antes nunca se guardaba
+                'entidad_id'        => $entidadId,
+                'nit_cedula'        => $nitCedula,    // ← antes siempre NULL
+                'nombre'            => $nombreTercero,// ← antes siempre NULL
+                'fecha_emision'     => $fechaEmision,
                 'estado'            => $estado,
-                'usuario_id'        => 1,
-                'archivo_path'      => $nombreFactura, 
-                'ruta_carpeta'      => ($estaPagada ? $rutaRaiz : $rutaCuentas), // La vista buscará en Cuentas si está pendiente
+                'usuario_id'        => $usuarioId,
+                'archivo_path'      => $nombreFactura,
+                'ruta_carpeta'      => $rutaRaiz,
                 'soporte_pago_path' => null,
                 'egreso_path'       => null,
-                'fecha_pago'        => $estaPagada ? date('Y-m-d') : null
+                'fecha_pago'        => $estaPagada ? date('Y-m-d') : null,
             ];
 
-            // Guardar en BD
-            $idGenerado = ($tipo === 'compra') ? $modelo->guardar($datos) : $modelo->guardarVenta($datos);
-            if (!$idGenerado) throw new Exception('Error al insertar');
+            $id = ($tipo === 'compra')
+                ? $modelo->guardar($datos)
+                : $modelo->guardarVenta($datos);
 
-            // --- 4. SI ENTRA PAGADA DE UNA VEZ, PROCESAR SOPORTES ---
+            if (!$id) throw new Exception('Error al registrar en la base de datos.');
+
+            // ─────────────────────────────────────────────────────────────────
+            // 7. SOPORTES DE PAGO (solo si entra marcada como pagada)
+            // ─────────────────────────────────────────────────────────────────
             if ($estaPagada) {
-                $nombreSoporte = $_FILES['archivo_soporte']['name'] ?? null;
-                $nombreEgreso = $_FILES['archivo_contable']['name'] ?? null;
+                $nSoporte = $_FILES['archivo_soporte']['name'] ?? null;
+                $nEgreso  = $_FILES['archivo_contable']['name'] ?? null;
 
-                if ($nombreSoporte) move_uploaded_file($_FILES['archivo_soporte']['tmp_name'], $rutaRaiz . $nombreSoporte);
-                if ($nombreEgreso) move_uploaded_file($_FILES['archivo_contable']['tmp_name'], $rutaRaiz . $nombreEgreso);
-                
-                $modelo->actualizarRutas($idGenerado, $nombreFactura, $rutaRaiz, $tipo, $nombreSoporte, $nombreEgreso);
+                if ($nSoporte && $_FILES['archivo_soporte']['error'] === UPLOAD_ERR_OK) {
+                    move_uploaded_file($_FILES['archivo_soporte']['tmp_name'], $rutaRaiz . $nSoporte);
+                }
+                if ($nEgreso && $_FILES['archivo_contable']['error'] === UPLOAD_ERR_OK) {
+                    move_uploaded_file($_FILES['archivo_contable']['tmp_name'], $rutaRaiz . $nEgreso);
+                }
+
+                $modelo->actualizarRutas($id, $nombreFactura, $rutaRaiz, $tipo, $nSoporte, $nEgreso);
             }
 
-            echo json_encode(['status' => 'success']);
+            echo json_encode(['status' => 'success', 'sello' => $selloAlt]);
             exit;
 
         } catch (Exception $e) {
@@ -86,8 +172,4 @@ class FacturaController {
             exit;
         }
     }
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    (new FacturaController())->guardar();
 }

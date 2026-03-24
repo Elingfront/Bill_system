@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'alt/sistema-facturas',
-        'pretty_version' => '1.0.0+no-version-set',
-        'version' => '1.0.0.0',
-        'reference' => null,
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => '002089e68e28b9cbe13fc4ae7f4bf9f89f7f8ec5',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'alt/sistema-facturas' => array(
-            'pretty_version' => '1.0.0+no-version-set',
-            'version' => '1.0.0.0',
-            'reference' => null,
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '002089e68e28b9cbe13fc4ae7f4bf9f89f7f8ec5',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -34,6 +34,15 @@
             'reference' => '75365b91986c2405cf5e1e012c5595cd487a98be',
             'type' => 'library',
             'install_path' => __DIR__ . '/../phpoption/phpoption',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'smalot/pdfparser' => array(
+            'pretty_version' => 'v2.12.4',
+            'version' => '2.12.4.0',
+            'reference' => '028d7cc0ceff323bc001d763caa2bbdf611866c4',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../smalot/pdfparser',
             'aliases' => array(),
             'dev_requirement' => false,
         ),

@@ -75,6 +75,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
+    <!-- Información Corporativa Footer -->
+    <div class="mt-auto py-4 text-center opacity-75">
+        <p class="mb-1 fw-bold" style="font-size: 13px; color: var(--primary-color);">ALT CONFECCIONES S.A.S. | NIT 901235934</p>
+        <p class="mb-0 text-muted" style="font-size: 11px;">CR 43 G # 27 - 60 | Medellín - Colombia | Tel: 604 22 56 | altconfeccionessas@gmail.com</p>
+    </div>
+
     <script>
         lucide.createIcons();
 

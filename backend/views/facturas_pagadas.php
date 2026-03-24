@@ -33,6 +33,42 @@ try {
 ?>
 
 <style>
+    /* ===== HEADER PROFESIONAL ALT ===== */
+    .alt-page-header {
+        background: linear-gradient(135deg, #632626 0%, #8b3a3a 50%, #4a1a1a 100%);
+        border-radius: 12px; padding: 22px 28px; margin-bottom: 25px;
+        display: flex; justify-content: space-between; align-items: center;
+        box-shadow: 0 4px 15px rgba(99, 38, 38, 0.25);
+        position: relative; overflow: hidden;
+    }
+    .alt-page-header::before {
+        content: ''; position: absolute; top: -50%; right: -20%;
+        width: 300px; height: 300px;
+        background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    .alt-header-content { display: flex; align-items: center; gap: 16px; z-index: 1; }
+    .alt-header-icon {
+        width: 48px; height: 48px; background: rgba(255,255,255,0.15);
+        border-radius: 12px; display: flex; align-items: center; justify-content: center;
+        color: #fff; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1);
+    }
+    .alt-header-title { font-size: 20px; font-weight: 800; color: #fff; margin: 0; letter-spacing: -0.3px; }
+    .alt-header-subtitle { font-size: 12px; color: rgba(255,255,255,0.7); font-weight: 500; letter-spacing: 0.5px; }
+    .alt-header-meta { display: flex; align-items: center; gap: 10px; z-index: 1; }
+    .alt-header-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.9);
+        padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.5px;
+        backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.08);
+    }
+    .alt-header-select {
+        background: rgba(255,255,255,0.95); color: #632626;
+        padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
+        border: none; cursor: pointer;
+    }
+
     .btn-folder {
         background-color: white;
         transition: all 0.3s ease;
@@ -55,23 +91,26 @@ try {
     }
 </style>
 
-<main class="main-content p-4" style="margin-left: 280px; margin-top: 20px;">
+<main class="main-content p-4" style="margin-left: 280px;">
     <div class="container-fluid">
         
-        <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm">
-            <h2 class="fw-bold mb-0" style="color: #632626;">Facturación Pagada</h2>
-            <form method="GET" action="facturas_pagadas.php">
-                <div class="input-group">
-                    <span class="input-group-text bg-light border-end-0">
-                        <i data-lucide="filter" size="18"></i>
-                    </span>
-                    <select name="modulo" class="form-select border-start-0 shadow-none" onchange="this.form.submit()" style="width: 200px; cursor: pointer;">
-                        <option value="todos" <?= $filtro == 'todos' ? 'selected' : '' ?>>Gestión de Folios</option>
-                        <option value="compra" <?= $filtro == 'compra' ? 'selected' : '' ?>>Gestión de Compras</option>
-                        <option value="venta" <?= $filtro == 'venta' ? 'selected' : '' ?>>Gestión de Ventas</option>
-                    </select>
+        <div class="alt-page-header">
+            <div class="alt-header-content">
+                <div class="alt-header-icon"><i data-lucide="check-circle" size="24"></i></div>
+                <div>
+                    <h4 class="alt-header-title">Facturación Pagada</h4>
+                    <span class="alt-header-subtitle">ALT-CONFECCIONES · Documentos Liquidados</span>
                 </div>
-            </form>
+            </div>
+            <div class="alt-header-meta">
+                <form method="GET" action="facturas_pagadas.php" style="margin:0;">
+                    <select name="modulo" class="alt-header-select" onchange="this.form.submit()">
+                        <option value="todos" <?= $filtro == 'todos' ? 'selected' : '' ?>>Todos los Folios</option>
+                        <option value="compra" <?= $filtro == 'compra' ? 'selected' : '' ?>>Solo Compras</option>
+                        <option value="venta" <?= $filtro == 'venta' ? 'selected' : '' ?>>Solo Ventas</option>
+                    </select>
+                </form>
+            </div>
         </div>
 
         <div class="row">
